@@ -20,17 +20,17 @@ import { extname } from 'path';
 import { ExamsService } from './exams.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
+import { QueryExamDto } from './dto/query-exam.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { QueryExamDto } from './dto/query-exam.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('exams')
 export class ExamsController {
   constructor(private readonly examsService: ExamsService) {}
 
-  // 📌 Upload file riêng, trả về fileUrl
+  // Upload file riêng, trả về fileUrl
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -47,37 +47,58 @@ export class ExamsController {
     return { fileUrl: `/uploads/exams/${file.filename}` };
   }
 
-  // 📌 Tạo exam (có thể gắn fileUrl lấy từ bước upload)
+  // Tạo exam mới
   @Post()
-  create(@Body() dto: CreateExamDto, @Req() req: any) {
+  async create(@Body() dto: CreateExamDto, @Req() req: any) {
     const userId = req.user.userId;
     return this.examsService.create(dto, userId);
   }
 
-  // 📌 Public GET all
+  // Lấy danh sách exam với filter, pagination, search (public)
   @UseGuards()
   @Get()
-  findAll(@Query() query: QueryExamDto) {
+  async findAll(@Query() query: QueryExamDto) {
     return this.examsService.findAll(query);
   }
 
-  // 📌 Public GET by id
+  // Lấy 1 exam theo id (public)
   @UseGuards()
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string) {
     return this.examsService.findOne(id);
   }
 
-  // 📌 Update exam
+  // Lấy exam của user đang login
+  @Get('my-exams')
+  async myExams(@Req() req: any) {
+    const userId = req.user.userId;
+    return this.examsService.findByUploader(userId);
+  }
+
+  // Update exam
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateExamDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateExamDto) {
     return this.examsService.update(id, dto);
   }
 
-  // 📌 Chỉ ADMIN mới được xóa exam
+  // Soft delete exam (chỉ admin)
   @Roles('ADMIN')
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string) {
     return this.examsService.remove(id);
+  }
+
+  // Approve exam (chỉ admin)
+  @Roles('ADMIN')
+  @Patch(':id/approve')
+  async approve(@Param('id') id: string) {
+    return this.examsService.approve(id);
+  }
+
+  // Lấy exam theo status (admin)
+  @Roles('ADMIN')
+  @Get('status/:status')
+  async findByStatus(@Param('status') status: string) {
+    return this.examsService.findByStatus(status as any); // convert sang enum nếu cần
   }
 }

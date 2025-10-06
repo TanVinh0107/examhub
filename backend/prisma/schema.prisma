@@ -62,6 +62,7 @@ model Subject {
 
 model Exam {
   id           String     @id @default(cuid())
+  title        String @default("Untitled")                             // Tên đề thi
   year         Int
   credits      Int?
   durationMin  Int?
@@ -81,11 +82,18 @@ model Exam {
   department   Department @relation(fields: [departmentId], references: [id])
   subject      Subject    @relation(fields: [subjectId], references: [id])
   uploader     User?      @relation(fields: [uploaderId], references: [id])
-  viewsHistory ExamView[] // 👈 Quan hệ ngược với ExamView.exam
+  viewsHistory ExamView[]
+
+  // Soft delete
+  deletedAt    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status, year])        // index để filter nhanh theo status & năm
+  @@index([schoolId, departmentId, subjectId])
 }
+
 
 model ExamView {
   id        String   @id @default(cuid())
