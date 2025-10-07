@@ -1,0 +1,11 @@
+# ⚙️ Bỏ qua thư mục và file không cần khi build Docker image
+node_modules
+dist
+.env
+Dockerfile
+docker-compose.yml
+uploads
+logs
+.git
+.gitignore
+README.md

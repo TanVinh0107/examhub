@@ -1,0 +1,21 @@
+npx prisma studio :DB
+cd D:\0.Vinh\1.Download\0.Learn\Projects\examhub\backend
+npm run start:dev
+
+
+{
+  "email": "test@example.com",
+  "password": "123456"
+}
+
+
+{
+  "fileName": "exam-math-2025.pdf",
+  "fileType": "application/pdf",
+  "schoolId": "cmgc40s560000iyawm6jhdk9z",
+  "departmentId": "cmgc40u000002iyawinyqh80v",
+  "subjectId": "cmgc40u0g0004iyaw1kfl1qwx",
+  "year": 2025,
+  "credits": 3,
+  "durationMin": 90
+}

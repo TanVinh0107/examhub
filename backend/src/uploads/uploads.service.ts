@@ -1,5 +1,4 @@
-// src/uploads/uploads.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import * as AWS from 'aws-sdk';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,10 +8,11 @@ import { CreateUploadDto } from './dto/create-upload.dto';
 export class UploadsService {
   private s3: AWS.S3;
   private bucket: string;
+  private readonly logger = new Logger(UploadsService.name);
 
   constructor(
-    private config: ConfigService,
-    private prisma: PrismaService,
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
     const region = this.config.get<string>('AWS_REGION');
     const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
@@ -29,13 +29,17 @@ export class UploadsService {
       accessKeyId,
       secretAccessKey,
       signatureVersion: 'v4',
-      endpoint: 'http://localhost:9000', // MinIO local
-      s3ForcePathStyle: true,
+      endpoint: 'http://localhost:9000', // ✅ MinIO local endpoint
+      s3ForcePathStyle: true,            // ✅ Bắt buộc cho MinIO
     });
+
+    this.logger.log(`✅ S3 client initialized for bucket: ${this.bucket}`);
   }
 
+  /** 
+   * 🔹 Tạo presigned PUT URL (upload)
+   */
   async getPresignedUrl(dto: CreateUploadDto, userId: string) {
-    // ✅ Validate file type + size
     const allowedImages = ['image/png', 'image/jpeg'];
     const allowedDocs = [
       'application/pdf',
@@ -46,24 +50,22 @@ export class UploadsService {
       throw new BadRequestException('❌ Invalid file type');
     }
 
-    // Nếu là ảnh => giới hạn 5MB, còn lại 50MB
-    const maxSize = allowedImages.includes(dto.fileType)
-      ? 5 * 1024 * 1024 // 5MB
-      : 50 * 1024 * 1024; // 50MB
-
-    // (Client cần đảm bảo size trước khi upload, ở đây ta chỉ log cảnh báo)
-    console.log(`ℹ️ File type: ${dto.fileType}, max allowed size = ${maxSize / 1024 / 1024}MB`);
+    // 🔸 Giới hạn dung lượng
+    const maxSizeMB = allowedImages.includes(dto.fileType) ? 5 : 50;
+    this.logger.warn(
+      `ℹ️ Upload type: ${dto.fileType} | max allowed size: ${maxSizeMB}MB`,
+    );
 
     const key = `exams/${userId}/${Date.now()}_${dto.fileName}`;
 
-    const url = await this.s3.getSignedUrlPromise('putObject', {
+    const presignedUrl = await this.s3.getSignedUrlPromise('putObject', {
       Bucket: this.bucket,
       Key: key,
       ContentType: dto.fileType,
-      Expires: 300, // URL sống 5 phút
+      Expires: 300, // 5 phút
     });
 
-    // ✅ Save exam metadata vào DB
+    // 🔹 Lưu metadata vào DB
     const exam = await this.prisma.exam.create({
       data: {
         title: dto.fileName,
@@ -80,8 +82,23 @@ export class UploadsService {
       },
     });
 
-    console.log(`✅ Presigned URL created for key: ${key}`);
+    this.logger.log(`✅ Presigned PUT URL created: ${key}`);
+    return { presignedUrl, key, examId: exam.id };
+  }
 
-    return { presignedUrl: url, key, examId: exam.id };
+  /** 
+   * 🔹 Tạo presigned GET URL (download)
+   */
+  async getDownloadUrl(key: string) {
+    if (!key) throw new BadRequestException('Missing file key');
+
+    const presignedUrl = await this.s3.getSignedUrlPromise('getObject', {
+      Bucket: this.bucket,
+      Key: key,
+      Expires: 300, // 5 phút để tải
+    });
+
+    this.logger.log(`📥 Generated presigned GET for: ${key}`);
+    return { downloadUrl: presignedUrl };
   }
 }

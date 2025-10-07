@@ -5,14 +5,15 @@ import { ValidationPipe } from '@nestjs/common';
 import * as express from 'express';
 import { join } from 'path';
 import helmet from 'helmet';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter'; // ✅ thêm dòng này
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // Logger Pino
+  // ✅ Logger Pino
   app.useLogger(app.get(Logger));
 
-  // Global ValidationPipe
+  // ✅ Global ValidationPipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -21,21 +22,22 @@ async function bootstrap() {
     }),
   );
 
-  // Helmet để tăng bảo mật
+  // ✅ Global Exception Filter (bắt mọi lỗi toàn app)
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // ✅ Helmet để tăng bảo mật
   app.use(helmet());
 
-  // Cho phép CORS
+  // ✅ Cho phép CORS
   app.enableCors({
-    origin: '*', // nếu FE chạy ở domain riêng thì điền cụ thể vào đây
+    origin: '*', // khi deploy có thể chỉ định domain frontend
     credentials: true,
   });
 
-  // Prefix cho tất cả route
+  // ✅ Prefix cho tất cả route
   app.setGlobalPrefix('api');
 
-  // ⚡ Phục vụ file tĩnh: upload ảnh/pdf...
-  // Ví dụ: ảnh lưu trong thư mục "uploads"
-  // khi truy cập: http://localhost:4000/uploads/tenfile.jpg
+  // ✅ Phục vụ file tĩnh (ảnh, PDF, v.v.)
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   const port = process.env.PORT || 4000;
