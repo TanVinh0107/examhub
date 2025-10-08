@@ -29,6 +29,7 @@ model User {
   provider     String?
   providerId   String?
   exams        Exam[]
+  currentRefreshToken String? 
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -105,3 +106,10 @@ model ExamView {
   userId    String?
   createdAt DateTime @default(now())
 }
+
+model RevokedToken {
+  token     String   @id         // 👈 Đặt làm khóa chính
+  userId    String?
+  createdAt DateTime @default(now())
+}
+

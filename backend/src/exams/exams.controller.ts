@@ -24,13 +24,14 @@ import { QueryExamDto } from './dto/query-exam.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { Role } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('exams')
 export class ExamsController {
   constructor(private readonly examsService: ExamsService) {}
 
-  // Upload file riêng, trả về fileUrl
+  // ✅ Upload file (yêu cầu login)
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -47,58 +48,58 @@ export class ExamsController {
     return { fileUrl: `/uploads/exams/${file.filename}` };
   }
 
-  // Tạo exam mới
+  // ✅ Tạo exam mới (yêu cầu login)
   @Post()
   async create(@Body() dto: CreateExamDto, @Req() req: any) {
     const userId = req.user.userId;
     return this.examsService.create(dto, userId);
   }
 
-  // Lấy danh sách exam với filter, pagination, search (public)
+  // ✅ Public - Lấy danh sách exam
   @UseGuards()
   @Get()
   async findAll(@Query() query: QueryExamDto) {
     return this.examsService.findAll(query);
   }
 
-  // Lấy 1 exam theo id (public)
+  // ✅ Public - Lấy chi tiết đề
   @UseGuards()
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.examsService.findOne(id);
   }
 
-  // Lấy exam của user đang login
+  // ✅ Lấy exam do người dùng đang login đã upload
   @Get('my-exams')
   async myExams(@Req() req: any) {
     const userId = req.user.userId;
     return this.examsService.findByUploader(userId);
   }
 
-  // Update exam
+  // ✅ Cập nhật exam (yêu cầu login)
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateExamDto) {
     return this.examsService.update(id, dto);
   }
 
-  // Soft delete exam (chỉ admin)
-  @Roles('ADMIN')
+  // 🔐 Chỉ admin được xoá
+  @Roles(Role.ADMIN)
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return this.examsService.remove(id);
   }
 
-  // Approve exam (chỉ admin)
-  @Roles('ADMIN')
+  // 🔐 Chỉ admin được duyệt
+  @Roles(Role.ADMIN)
   @Patch(':id/approve')
   async approve(@Param('id') id: string) {
     return this.examsService.approve(id);
   }
 
-  // Lấy exam theo status (admin)
-  @Roles('ADMIN')
+  // 🔐 Chỉ admin được lọc theo trạng thái
+  @Roles(Role.ADMIN)
   @Get('status/:status')
   async findByStatus(@Param('status') status: string) {
-    return this.examsService.findByStatus(status as any); // convert sang enum nếu cần
+    return this.examsService.findByStatus(status as any);
   }
 }

@@ -28,6 +28,12 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  async logout(@Req() req: any) {
+    return this.authService.logout(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@Req() req: any) {
     return req.user; // user được gắn từ JwtStrategy
