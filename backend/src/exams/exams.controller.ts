@@ -11,11 +11,10 @@ import {
   Query,
   UploadedFile,
   UseInterceptors,
+  NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { v4 as uuid } from 'uuid';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 
 import { ExamsService } from './exams.service';
 import { CreateExamDto } from './dto/create-exam.dto';
@@ -25,30 +24,32 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { Role } from '@prisma/client';
+import { S3Service } from '../s3/s3.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('exams')
 export class ExamsController {
-  constructor(private readonly examsService: ExamsService) {}
+  constructor(
+    private readonly examsService: ExamsService,
+    private readonly s3Service: S3Service,
+  ) {}
 
-  // ✅ Upload file (yêu cầu login)
+  // ✅ Upload file lên MinIO/S3 (yêu cầu đăng nhập)
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/exams',
-        filename: (req, file, cb) => {
-          const uniqueName = uuid() + extname(file.originalname);
-          cb(null, uniqueName);
-        },
-      }),
+      storage: memoryStorage(),
     }),
   )
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
-    return { fileUrl: `/uploads/exams/${file.filename}` };
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+    const key = await this.s3Service.uploadFile(file);
+    return {
+      fileKey: key,
+      fileType: file.mimetype,
+    };
   }
 
-  // ✅ Tạo exam mới (yêu cầu login)
+  // ✅ Tạo exam mới
   @Post()
   async create(@Body() dto: CreateExamDto, @Req() req: any) {
     const userId = req.user.userId;
@@ -56,47 +57,74 @@ export class ExamsController {
   }
 
   // ✅ Public - Lấy danh sách exam
-  @UseGuards()
+  @UseGuards() // bỏ guard để public
   @Get()
   async findAll(@Query() query: QueryExamDto) {
-    return this.examsService.findAll(query);
+    const result = await this.examsService.findAll(query);
+
+    return {
+      data: result.data.map((e) => ({
+        id: e.id,
+        title: e.title || 'Không có tiêu đề',
+        year: e.year,
+        views: e.views,
+        status: e.status,
+        description: e.description,
+        fileKey: e.fileUrl,
+        fileType: e.fileType,
+      })),
+      meta: result.meta,
+    };
   }
 
-  // ✅ Public - Lấy chi tiết đề
+  // ✅ Public - Lấy chi tiết exam
   @UseGuards()
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.examsService.findOne(id);
   }
 
-  // ✅ Lấy exam do người dùng đang login đã upload
+  // ✅ Trả về presigned URL để tải file
+  @Get(':id/download')
+  async getDownloadUrl(@Param('id') id: string) {
+    const exam = await this.examsService.findOne(id);
+
+    if (!exam || !exam.fileUrl) {
+      throw new NotFoundException('Không tìm thấy đề thi hoặc file');
+    }
+
+    const url = await this.s3Service.getPresignedUrl(exam.fileUrl);
+    return { url };
+  }
+
+  // ✅ Lấy exam đã upload của user hiện tại
   @Get('my-exams')
   async myExams(@Req() req: any) {
     const userId = req.user.userId;
     return this.examsService.findByUploader(userId);
   }
 
-  // ✅ Cập nhật exam (yêu cầu login)
+  // ✅ Cập nhật exam
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateExamDto) {
     return this.examsService.update(id, dto);
   }
 
-  // 🔐 Chỉ admin được xoá
+  // 🔐 Admin - Xoá exam
   @Roles(Role.ADMIN)
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return this.examsService.remove(id);
   }
 
-  // 🔐 Chỉ admin được duyệt
+  // 🔐 Admin - Duyệt exam
   @Roles(Role.ADMIN)
   @Patch(':id/approve')
   async approve(@Param('id') id: string) {
     return this.examsService.approve(id);
   }
 
-  // 🔐 Chỉ admin được lọc theo trạng thái
+  // 🔐 Admin - Lọc exam theo trạng thái
   @Roles(Role.ADMIN)
   @Get('status/:status')
   async findByStatus(@Param('status') status: string) {

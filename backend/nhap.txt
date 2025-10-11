@@ -1,7 +1,9 @@
 docker-compose up -d
 
 npx prisma studio :DB
-cd D:\0.Vinh\1.Download\0.Learn\Projects\examhub\backend
+
+D:
+ cd D:\0.Vinh\1.Download\0.Learn\Projects\examhub\backend
 npm run start:dev
 
 {
@@ -26,3 +28,22 @@ npm run start:dev
 git add .
 git commit -m "Update tính năng upload + phân quyền"
 git push
+
+
+
+✅ Cách khắc phục ngay:
+🔧 Bước 1: Xoá sạch tiếp
+rmdir /s /q node_modules
+del package-lock.json
+
+🔧 Bước 2: Cài lại bằng đúng phiên bản ổn định nhất:
+
+Dùng lệnh dưới đây để tránh bị dính các thư viện phụ thuộc không ổn:
+
+npm install prisma@5.10.2 @prisma/client@5.10.2
+
+
+👉 Lưu ý: Không cài @prisma/engines riêng nữa – các bản Prisma từ v5 đã bundle sẵn engine trong @prisma/client
+
+🔧 Bước 3: Generate lại Prisma Client
+npx prisma generate

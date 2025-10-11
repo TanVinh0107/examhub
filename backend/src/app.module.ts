@@ -1,4 +1,3 @@
-// app.module.ts
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from '@nestjs/config';
@@ -14,6 +13,10 @@ import { UploadsModule } from './uploads/uploads.module';
 
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+
+import { S3Service } from './s3/s3.service'; // ✅ S3Service
+import { S3Module } from './s3/s3.module';   // ✅ nếu muốn tách riêng module
+// (Tùy chọn: có thể khai báo trực tiếp ở providers hoặc tách riêng module như dưới đây)
 
 @Module({
   imports: [
@@ -34,15 +37,16 @@ import { RolesGuard } from './auth/roles.guard';
     DepartmentsModule,
     SubjectsModule,
     UploadsModule,
+    S3Module, // ✅ Import S3Module chứa S3Service
   ],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard, // ✅ bắt buộc xác thực
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard,   // ✅ bắt buộc kiểm tra vai trò
+      useClass: RolesGuard,
     },
   ],
 })

@@ -1,0 +1,43 @@
+docker-compose up -d
+
+npx prisma studio :DB
+
+
+cd D:\0.Vinh\1.Download\0.Learn\Projects\examhub\frontend
+
+
+npm run start:dev
+
+npm run dev
+
+
+
+
+
+
+git add .
+git commit -m "Update tính năng upload + phân quyền"
+git push
+
+
+
+✅ Cách sửa dứt điểm:
+Bước 1: Xoá toàn bộ cache & node_modules
+# Trong thư mục frontend:
+rd /s /q .next
+rd /s /q node_modules
+del package-lock.json
+
+Bước 2: Cài lại toàn bộ dependencies
+npm install
+
+Bước 3: Cài riêng mini-css-extract-plugin (nếu chưa)
+npm install mini-css-extract-plugin
+
+
+Bạn có thể kiểm tra có bị thiếu không bằng:
+
+npm ls mini-css-extract-plugin
+
+Bước 4: Chạy lại frontend
+npm run dev
