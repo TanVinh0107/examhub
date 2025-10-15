@@ -14,26 +14,44 @@ export class UploadsService {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {
+    // ✅ Cho phép đọc từ cả AWS_* và MINIO_* để linh hoạt
     const region = this.config.get<string>('AWS_REGION');
     const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
     const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
-    const bucket = this.config.get<string>('AWS_S3_BUCKET');
+    const bucket =
+      this.config.get<string>('AWS_S3_BUCKET') ||
+      this.config.get<string>('MINIO_BUCKET');
+
+    const endpoint =
+      this.config.get<string>('AWS_S3_ENDPOINT') ||
+      this.config.get<string>('MINIO_ENDPOINT') ||
+      'localhost';
+    const port = this.config.get<string>('MINIO_PORT') || '9000';
+    const useSSL =
+      this.config.get<string>('MINIO_USE_SSL') === 'true' ? true : false;
 
     if (!region || !accessKeyId || !secretAccessKey || !bucket) {
-      throw new Error('❌ Missing AWS S3 configuration in .env');
+      throw new Error('❌ Missing S3/MinIO configuration in .env');
     }
 
     this.bucket = bucket;
+
+    // ✅ Tự phát hiện đang dùng MinIO (nội bộ) hay AWS thật
+    const fullEndpoint = endpoint.includes('amazonaws.com')
+      ? undefined
+      : `${useSSL ? 'https' : 'http'}://${endpoint}:${port}`;
+
     this.s3 = new AWS.S3({
       region,
       accessKeyId,
       secretAccessKey,
       signatureVersion: 'v4',
-      endpoint: 'http://localhost:9000', // ✅ MinIO local endpoint
-      s3ForcePathStyle: true,            // ✅ Bắt buộc cho MinIO
+      endpoint: fullEndpoint,
+      s3ForcePathStyle: !endpoint.includes('amazonaws.com'), // bắt buộc cho MinIO
     });
 
     this.logger.log(`✅ S3 client initialized for bucket: ${this.bucket}`);
+    this.logger.debug(`Endpoint: ${fullEndpoint || 'AWS S3 default'}`);
   }
 
   /** 
