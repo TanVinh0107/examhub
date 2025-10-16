@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Toàn cục: màu nền + chữ */
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+/* ✅ Hiệu ứng fade-in (nằm ngoài body) */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ✅ Class tiện dùng */
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-in-out;
+}

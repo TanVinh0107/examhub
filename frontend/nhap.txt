@@ -16,7 +16,7 @@ npm run dev
 
 
 git add .
-git commit -m "Update tính năng upload + phân quyền"
+git commit -m "Đang làm front-end, hình như backend chưa làm forgot password"
 git push
 
 
