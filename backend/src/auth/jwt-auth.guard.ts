@@ -10,17 +10,16 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   canActivate(context: ExecutionContext) {
-    // ✅ Kiểm tra nếu route có @Public() thì bỏ qua guard
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
     if (isPublic) return true;
-
     return super.canActivate(context);
   }
 
-  handleRequest(err, user, info) {
+  // ✅ Fix: thêm kiểu tham số cho strict mode
+  handleRequest(err: any, user: any, info: any) {
     if (err || !user) {
       throw err || new UnauthorizedException('Bạn chưa đăng nhập hoặc token không hợp lệ');
     }

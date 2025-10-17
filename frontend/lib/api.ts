@@ -1,17 +1,20 @@
-import axios from "axios";
+// src/lib/api.ts
+import axios, { AxiosError, AxiosRequestConfig } from "axios";
 
-// --- Tạo axios instance dùng chung ---
+// ✅ Tạo axios instance chung
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api",
-  withCredentials: false, // Nếu bạn không dùng cookie thì giữ false
+  withCredentials: false, // Đặt true nếu dùng cookie-based auth
 });
 
-// --- Request Interceptor: tự động gắn Bearer token ---
-api.interceptors.request.use((config) => {
+// ✅ Request Interceptor: tự động gắn Bearer token
+api.interceptors.request.use((config: any) => {
+
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("access_token");
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+      config.headers["X-Requested-With"] = "XMLHttpRequest";
     }
   }
   return config;
@@ -21,7 +24,7 @@ api.interceptors.request.use((config) => {
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: any) => void }> = [];
 
-// --- Hàm xử lý các request chờ token refresh ---
+// --- Hàm xử lý các request chờ refresh ---
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) prom.reject(error);
@@ -30,13 +33,13 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// --- Response Interceptor: tự refresh token khi 401 ---
+// ✅ Response Interceptor: tự động refresh khi 401
 api.interceptors.response.use(
-  (res) => res, // ✅ thành công => trả kết quả như bình thường
-  async (error) => {
-    const originalRequest = error.config;
+  (response) => response, // thành công -> trả kết quả luôn
+  async (error: AxiosError) => {
+    const originalRequest: any = error.config;
 
-    // ✅ Nếu 401 mà chưa retry -> xử lý refresh
+    // ❌ Nếu 401 và chưa retry -> xử lý refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         // Nếu đang refresh thì xếp request vào hàng chờ
@@ -53,42 +56,40 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem("refresh_token");
-        if (!refreshToken) throw new Error("No refresh token found");
+        if (!refreshToken) throw new Error("Không có refresh token");
 
-        // ⚠️ Gọi refresh bằng axios “gốc” chứ không dùng instance `api`
+        // ⚠️ Dùng axios gốc để refresh, tránh loop interceptor
         const { data } = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/auth/refresh`,
           { refreshToken }
         );
 
         const newToken = data.access_token;
-        if (!newToken) throw new Error("No new access token returned");
+        if (!newToken) throw new Error("Không nhận được access token mới");
 
-        // ✅ Cập nhật token trong localStorage và header mặc định
+        // ✅ Lưu token mới và gắn header mặc định
         localStorage.setItem("access_token", newToken);
         api.defaults.headers.Authorization = `Bearer ${newToken}`;
 
-        // ✅ Giải quyết tất cả request đang chờ
+        // ✅ Giải quyết tất cả request chờ
         processQueue(null, newToken);
 
-        // ✅ Gắn token mới vào request gốc và retry
+        // ✅ Retry request gốc
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (err) {
-        // ❌ Refresh thất bại => clear token & redirect login
+        // ❌ Refresh thất bại -> xoá token & redirect
         processQueue(err, null);
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
+        if (typeof window !== "undefined") window.location.href = "/login";
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
       }
     }
 
-    // ❌ Các lỗi khác giữ nguyên
+    // ❌ Lỗi khác giữ nguyên
     return Promise.reject(error);
   }
 );

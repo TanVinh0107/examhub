@@ -51,49 +51,49 @@ export class AuthService {
     return this.issueTokens(user.id, user.email, user.role);
   }
 
-  // 🔄 Làm mới access token
-  async refresh(refreshToken: string) {
-    try {
-      // 1️⃣ Giải mã token và xác thực loại token
-      const payload = await this.jwt.verifyAsync(refreshToken, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
-      });
+// 🔄 Làm mới access token
+async refresh(refreshToken: string) {
+  try {
+    const payload = await this.jwt.verifyAsync(refreshToken, {
+      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+    });
 
-      if (payload?.type !== 'refresh') {
-        throw new UnauthorizedException('Invalid token type');
-      }
+    if (payload?.type !== 'refresh') {
+      throw new UnauthorizedException('Invalid token type');
+    }
 
-      // 2️⃣ Kiểm tra token đã bị thu hồi chưa
-      const revoked = await this.prisma.revokedToken.findUnique({
-        where: { token: refreshToken },
-      });
-      if (revoked) {
-        throw new UnauthorizedException('This refresh token has been revoked');
-      }
+    const revoked = await this.prisma.revokedToken.findUnique({
+      where: { token: refreshToken },
+    });
+    if (revoked) {
+      throw new UnauthorizedException('This refresh token has been revoked');
+    }
 
-      // 3️⃣ Lấy user từ DB
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          currentRefreshToken: true,
-        },
-      });
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        currentRefreshToken: true,
+      },
+    });
 
-      // 4️⃣ Kiểm tra token có khớp DB không
-      if (!user || user.currentRefreshToken !== refreshToken) {
-        throw new UnauthorizedException('Invalid or expired refresh token');
-      }
-
-      // 5️⃣ Nếu hợp lệ → cấp token mới
-      return this.issueTokens(user.id, user.email, user.role);
-    } catch (err) {
-      console.warn('[SECURITY] Refresh failed:', err.message || err);
+    if (!user || user.currentRefreshToken !== refreshToken) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
+
+    return this.issueTokens(user.id, user.email, user.role);
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.warn('[SECURITY] Refresh failed:', err.message);
+    } else {
+      console.warn('[SECURITY] Refresh failed: Unknown error', err);
+    }
+    throw new UnauthorizedException('Invalid or expired refresh token');
   }
+}
+
 
   // 🚪 Đăng xuất (revoke refresh token)
   async logout(userId: string) {

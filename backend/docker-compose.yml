@@ -1,67 +1,70 @@
 version: '3.9'
 
 services:
-  # 🧱 Backend NestJS
-  backend:
-    container_name: examhub-backend
-    build: .
-    ports:
-      - '4000:4000'
-    env_file:
-      - .env
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:postgres@examhub-db:5432/examhub
-    depends_on:
-      - examhub-db
-      - examhub-minio
-    command: sh -c "npx prisma migrate deploy && node dist/src/main.js"
-
-
-
-
-  # 🐘 PostgreSQL
+  # 🟦 PostgreSQL
   examhub-db:
+    image: postgres:15
     container_name: examhub-db
-    image: postgres:16
     restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: examhub
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
 
-  # 🧰 pgAdmin
+  # 🟧 pgAdmin
   examhub-pgadmin:
-    container_name: examhub-pgadmin
     image: dpage/pgadmin4
+    container_name: examhub-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: 123456
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - '5050:80'
+      - "5050:80"
     depends_on:
       - examhub-db
 
-  # 📦 MinIO
+  # 🟨 MinIO
   examhub-minio:
+    image: minio/minio
     container_name: examhub-minio
-    image: quay.io/minio/minio
     restart: always
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
+
+  # 🟥 Backend NestJS
+  examhub-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: examhub-backend
+    restart: always
+    depends_on:
+      - examhub-db
+      - examhub-minio
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@examhub-db:5432/examhub
+      JWT_ACCESS_SECRET: supersecret_access
+      JWT_REFRESH_SECRET: supersecret_refresh
+      PORT: 4000
     ports:
-      - '9000:9000'
-      - '9001:9001'
-    command: server /data --console-address ":9001"
+      - "4000:4000"
+    volumes:
+      - .:/app
+      - /app/node_modules
 
 volumes:
-  postgres_data:
+  db_data:
   minio_data:

@@ -1,28 +1,29 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 
+type JwtPayload = {
+  sub: string;
+  email: string;
+  role: string;
+  type?: string;
+};
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private readonly config: ConfigService) {
+    const secret = config.get<string>('JWT_ACCESS_SECRET') ?? 'fallback_secret';
+
+    // ✅ Phải truyền object, KHÔNG phải mảng
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: config.get<string>('JWT_ACCESS_SECRET'),
+      ignoreExpiration: false,
+      secretOrKey: secret,
     });
   }
 
-  async validate(payload: any) {
-    // Chỉ chấp nhận token có type = 'access'
-    if (payload?.type !== 'access') {
-      throw new UnauthorizedException('Invalid token type');
-    }
-
-    // req.user sẽ nhận object này
-    return {
-      userId: payload.sub,
-      email: payload.email,
-      role: payload.role,
-    };
+  async validate(payload: JwtPayload) {
+    return { userId: payload.sub, email: payload.email, role: payload.role };
   }
 }

@@ -2,9 +2,19 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 
+function isTokenExpired(token: string) {
+  try {
+    const [, payloadBase64] = token.split(".");
+    const payload = JSON.parse(atob(payloadBase64));
+    return payload.exp && payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export function withAuth<P extends object>(
   WrappedComponent: React.ComponentType<P>
-) {
+): React.FC<P> {
   const AuthenticatedComponent = (props: P) => {
     const router = useRouter();
     const [isChecking, setIsChecking] = useState(true);
@@ -13,14 +23,15 @@ export function withAuth<P extends object>(
       if (typeof window === "undefined") return;
 
       const token = localStorage.getItem("access_token");
-      if (!token) {
-        router.replace("/login"); // ⛔ Nếu chưa login thì chuyển về trang đăng nhập
+      if (!token || isTokenExpired(token)) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.replace("/login", undefined, { shallow: true });
       } else {
-        setIsChecking(false); // ✅ Có token thì cho phép render trang
+        setIsChecking(false);
       }
     }, [router]);
 
-    // 🚧 Tránh nhấp nháy khi đang kiểm tra
     if (isChecking) {
       return (
         <div className="flex items-center justify-center h-screen bg-gray-50">

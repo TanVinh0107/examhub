@@ -1,5 +1,5 @@
-// src/uploads/dto/create-upload.dto.ts
-import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, IsOptional, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateUploadDto {
   @IsString()
@@ -22,15 +22,18 @@ export class CreateUploadDto {
   @IsNotEmpty()
   subjectId: string;
 
-  @IsNumber()
-  @IsNotEmpty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1900)
   year: number;
 
-  @IsNumber()
+  @Type(() => Number)
   @IsOptional()
+  @IsInt()
   credits?: number;
 
-  @IsNumber()
+  @Type(() => Number)
   @IsOptional()
+  @IsInt()
   durationMin?: number;
 }

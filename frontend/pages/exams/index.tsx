@@ -50,12 +50,14 @@ const ExamsPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-800">
             📚 Danh sách đề thi
           </h1>
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
-          >
-            + Tạo đề thi
-          </button>
+        <button
+          type="button"
+          onClick={() => setShowModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+        >
+          + Tạo đề thi
+        </button>
+
         </div>
 
         {loading ? (
